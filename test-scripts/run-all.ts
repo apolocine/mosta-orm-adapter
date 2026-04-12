@@ -7,7 +7,7 @@ const tests = [
   'test-scripts/test-native.ts',
   'test-scripts/test-prisma.ts',
   'test-scripts/test-jsonschema.ts',
-  // 'test-scripts/test-openapi.ts',     // TODO
+  'test-scripts/test-openapi.ts',
 ];
 
 let total = 0;

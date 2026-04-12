@@ -2,6 +2,43 @@
 
 All notable changes to `@mostajs/orm-adapter` will be documented in this file.
 
+## [0.4.0] — 2026-04-12
+
+### Added
+
+- **OpenApiAdapter** : converts OpenAPI 2.0/3.0/3.1 specs to `EntitySchema[]`
+  - OpenAPI 3.1 : full JSON Schema 2020-12 semantics
+  - OpenAPI 3.0.x : auto-normalized to 3.1 shape before conversion
+    - `nullable: true` → `type: [T, "null"]`
+    - `example: X` → `examples: [X]`
+    - `exclusiveMinimum: true` + `minimum: X` → `exclusiveMinimum: X`
+  - Swagger 2.0 detected with PREVIEW_FEATURE warning
+  - Extracts all `components/schemas` as entities
+  - Delegates to JsonSchemaAdapter for the schema conversion pipeline
+  - **x-mostajs-relation preservation** : re-attaches extensions on $ref-bearing properties (dereference strips siblings)
+  - **Title injection** : auto-adds `title: <key>` to each schema for relation detection
+  - **Input forms** : object, JSON string (YAML requires pre-parsing)
+  - Uses `@readme/openapi-parser` for validation + dereferencing
+- **Utils** : `openapi-normalize` (3.0 → 3.1 transformations)
+- **JsonSchemaAdapter.schemasToEntities()** : public method to convert a named schema map without root-detection heuristic
+- 50 new unit tests on 3 fixtures :
+  - `petstore-3.1.json` (3 entities, relations, discriminator, x-mostajs-*)
+  - `petstore-3.0.json` (legacy with all normalizations)
+  - `discriminator.json` (oneOf polymorphism)
+
+### Changed
+
+- `createDefaultRegistry()` now includes OpenApiAdapter (4 adapters total)
+- `JsonSchemaAdapter.toEntitySchema()` : uses `structuredClone` instead of JSON.parse/stringify to handle circular refs from OpenAPI's dereferenced tree
+
+### Total test coverage
+
+196 tests across 4 adapters :
+- 31 native
+- 55 prisma
+- 60 jsonschema
+- 50 openapi
+
 ## [0.3.0] — 2026-04-12
 
 ### Added

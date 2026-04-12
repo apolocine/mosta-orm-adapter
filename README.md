@@ -147,8 +147,27 @@ export class MyCustomAdapter extends AbstractAdapter {
 - **v0.1.0** — NativeAdapter + core (AbstractAdapter, Registry) ✅
 - **v0.2.0** — PrismaAdapter (scalars, relations, enums, implicit M-N) ✅
 - **v0.3.0** — JsonSchemaAdapter (Draft 2020-12 + Draft-07 + allOf + x-mostajs-*) ✅
-- **v0.4.0** — OpenApiAdapter (3.1 with 3.0 normalization)
+- **v0.4.0** — OpenApiAdapter (3.1 + 3.0 normalization + Swagger 2.0 detect) ✅
 - **v1.0.0** — Production-ready, all 4 adapters with reverse conversion
+
+## OpenApiAdapter example
+
+```ts
+import { OpenApiAdapter } from '@mostajs/orm-adapter';
+import { readFileSync } from 'fs';
+
+const spec = JSON.parse(readFileSync('./openapi.json', 'utf8'));
+const adapter = new OpenApiAdapter();
+const entities = await adapter.toEntitySchema(spec);
+
+// Extracts every components/schemas entry as an EntitySchema.
+// Auto-handles:
+// - OpenAPI 3.0 → 3.1 normalization (nullable, exclusiveMin, examples)
+// - $ref resolution (internal)
+// - allOf flattening (inheritance)
+// - discriminator → EntitySchema.discriminator
+// - x-mostajs-relation on $ref-bearing properties (preserved across dereference)
+```
 
 ## PrismaAdapter example
 

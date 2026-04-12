@@ -82,8 +82,12 @@ export class JsonSchemaAdapter extends AbstractAdapter {
     let resolved: JsonSchema;
     try {
       // Dereference : resolves all $ref into inline schemas.
-      // We clone to avoid mutating caller's input.
-      resolved = await $RefParser.dereference(JSON.parse(JSON.stringify(raw))) as JsonSchema;
+      // structuredClone handles circular references (unlike JSON.parse/stringify)
+      // which matter when this adapter is called from OpenApiAdapter on already-dereferenced specs.
+      const cloned = typeof structuredClone === 'function'
+        ? structuredClone(raw)
+        : JSON.parse(JSON.stringify(raw));
+      resolved = await $RefParser.dereference(cloned) as JsonSchema;
     } catch (e) {
       throw new InvalidSchemaError(
         `Failed to dereference JSON Schema: ${e instanceof Error ? e.message : String(e)}`,
@@ -107,6 +111,23 @@ export class JsonSchemaAdapter extends AbstractAdapter {
     const entities = candidates.map(c => this.convertEntity(c, candidates, seen, opts));
 
     return entities;
+  }
+
+  /**
+   * Convert a named map of schemas directly to EntitySchema[].
+   * Used by OpenApiAdapter when it has already extracted components.schemas.
+   * Skips the "root entity" detection heuristic.
+   */
+  async schemasToEntities(
+    schemas: Record<string, JsonSchema>,
+    opts?: AdapterOptions
+  ): Promise<EntitySchema[]> {
+    const candidates: EntityCandidate[] = Object.entries(schemas).map(([name, schema]) => ({
+      name: this.pascalCase(name),
+      schema,
+    }));
+    const seen = new Set<string>();
+    return candidates.map(c => this.convertEntity(c, candidates, seen, opts));
   }
 
   // ============================================================

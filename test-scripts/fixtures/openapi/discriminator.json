@@ -1,0 +1,46 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Animals", "version": "1.0.0" },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "Pet": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/Dog" },
+          { "$ref": "#/components/schemas/Cat" }
+        ],
+        "discriminator": {
+          "propertyName": "petType",
+          "mapping": {
+            "dog": "#/components/schemas/Dog",
+            "cat": "#/components/schemas/Cat"
+          }
+        }
+      },
+      "Dog": {
+        "type": "object",
+        "x-mostajs-entity": {
+          "tableName": "animals",
+          "discriminator": "petType",
+          "discriminatorValue": "dog"
+        },
+        "properties": {
+          "petType": { "type": "string", "const": "dog" },
+          "breed":   { "type": "string" }
+        }
+      },
+      "Cat": {
+        "type": "object",
+        "x-mostajs-entity": {
+          "tableName": "animals",
+          "discriminator": "petType",
+          "discriminatorValue": "cat"
+        },
+        "properties": {
+          "petType": { "type": "string", "const": "cat" },
+          "meow":    { "type": "boolean" }
+        }
+      }
+    }
+  }
+}
