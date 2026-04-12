@@ -2,6 +2,36 @@
 
 All notable changes to `@mostajs/orm-adapter` will be documented in this file.
 
+## [0.2.0] — 2026-04-12
+
+### Added
+
+- **PrismaAdapter** : converts `.prisma` files to `EntitySchema[]`
+  - All scalar types : String, Int, BigInt, Float, Decimal, Boolean, DateTime, Json, Bytes
+  - Modifiers : `?` (optional), `[]` (array)
+  - Field attributes : `@id`, `@unique`, `@default`, `@map`, `@updatedAt`, `@db.VarChar(n)`
+  - Model attributes : `@@id`, `@@unique`, `@@index`, `@@map`, `@@schema`, `@@fulltext`
+  - Enums (as `FieldDef.enum`)
+  - Relations : 1-1, 1-N, many-to-one, implicit M-N (synthesized `_ATo B` junction)
+  - Self-relations (named via `@relation("Name")`)
+  - Referential actions : Cascade, SetNull, Restrict, NoAction, SetDefault (warn → set-null)
+  - `@default` sentinels : AUTOINCREMENT, NOW, UUID_V4/V7, CUID/CUID2, NANOID, ULID, OBJECT_ID
+  - Auto-detection of `createdAt` + `updatedAt` convention → `timestamps: true`
+- **Utils** : `prisma-ast-helpers`, `prisma-type-mapper`, `prisma-default-mapper`
+- **DefaultSentinel** constants exported for downstream ORM interpretation
+- 55 new unit tests (all passing) on 4 fixtures (blog, scalars, m2m-implicit, self-relation)
+
+### Changed
+
+- `createDefaultRegistry()` now pre-registers PrismaAdapter alongside NativeAdapter
+
+### Warnings emitted (new)
+
+- `LOSSY_CONVERSION` on BigInt, Decimal, Bytes
+- `UNSUPPORTED_FEATURE` on `Unsupported("...")`, `@@ignore`, `onDelete: SetDefault`
+- `PREVIEW_FEATURE` on `view`, composite `type`, `@@fulltext`, `@@schema`
+- `UNKNOWN_EXTENSION` on unrecognized `@default(fn())`
+
 ## [0.1.0] — 2026-04-12
 
 ### Added

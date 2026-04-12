@@ -24,19 +24,27 @@ export {
 
 // --- Concrete adapters ---
 export { NativeAdapter } from './adapters/native.adapter.js';
+export { PrismaAdapter } from './adapters/prisma.adapter.js';
+
+// --- Default-value sentinels (Prisma @default semantics) ---
+export { DefaultSentinel } from './utils/prisma-default-mapper.js';
 
 // --- Convenience factory ---
 import { AdapterRegistry } from './core/registry.js';
 import { NativeAdapter } from './adapters/native.adapter.js';
+import { PrismaAdapter } from './adapters/prisma.adapter.js';
 
 /**
  * Create a registry with all standard adapters pre-registered.
- * Order of priority: native → (prisma) → (jsonschema) → (openapi).
- * Future adapters auto-registered here as they become available.
+ * Detection order (first registered = last priority) :
+ *   PrismaAdapter  > NativeAdapter
+ * (Prisma registered last so it wins over Native when input is a string.
+ *  Native has canParse === false for strings, so no ambiguity either way.)
  */
 export function createDefaultRegistry(): AdapterRegistry {
   const registry = new AdapterRegistry();
   registry.register(new NativeAdapter());
-  // TODO: register PrismaAdapter / JsonSchemaAdapter / OpenApiAdapter when ready
+  registry.register(new PrismaAdapter());
+  // TODO: register JsonSchemaAdapter / OpenApiAdapter when ready
   return registry;
 }

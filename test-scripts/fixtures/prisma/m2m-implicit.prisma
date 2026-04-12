@@ -1,0 +1,13 @@
+// Implicit many-to-many (Prisma auto-generates join table _CategoryToPost)
+
+model Post {
+  id         Int        @id @default(autoincrement())
+  title      String
+  categories Category[]
+}
+
+model Category {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  posts Post[]
+}

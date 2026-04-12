@@ -1,0 +1,22 @@
+// Coverage of all Prisma scalar types + modifiers
+
+model Stress {
+  id         Int      @id @default(autoincrement())
+  str        String
+  strOpt     String?
+  strArr     String[]
+  strLen     String   @db.VarChar(255)
+  text       String   @db.Text
+  bool       Boolean  @default(false)
+  int        Int      @default(0)
+  bigNum     BigInt   @default(0)
+  float      Float    @default(0.0)
+  decimal    Decimal  @default(0) @db.Decimal(10, 2)
+  date       DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  json       Json     @default("{}")
+  bytes      Bytes
+  uuid       String   @default(uuid())
+  cuid       String   @default(cuid())
+  nanoid     String   @default(nanoid())
+}

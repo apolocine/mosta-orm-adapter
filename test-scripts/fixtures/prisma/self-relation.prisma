@@ -1,0 +1,9 @@
+// Self-referencing hierarchy (named relation)
+
+model Employee {
+  id         Int        @id @default(autoincrement())
+  name       String
+  managerId  Int?
+  manager    Employee?  @relation("Hierarchy", fields: [managerId], references: [id])
+  reports    Employee[] @relation("Hierarchy")
+}
