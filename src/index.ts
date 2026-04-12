@@ -25,14 +25,25 @@ export {
 // --- Concrete adapters ---
 export { NativeAdapter } from './adapters/native.adapter.js';
 export { PrismaAdapter } from './adapters/prisma.adapter.js';
+export { JsonSchemaAdapter } from './adapters/jsonschema.adapter.js';
 
 // --- Default-value sentinels (Prisma @default semantics) ---
 export { DefaultSentinel } from './utils/prisma-default-mapper.js';
+
+// --- JSON Schema types (re-export for convenience) ---
+export type {
+  JsonSchema,
+  JsonSchemaType,
+  XMostajsEntity,
+  XMostajsRelation,
+  DraftVersion,
+} from './utils/jsonschema-types.js';
 
 // --- Convenience factory ---
 import { AdapterRegistry } from './core/registry.js';
 import { NativeAdapter } from './adapters/native.adapter.js';
 import { PrismaAdapter } from './adapters/prisma.adapter.js';
+import { JsonSchemaAdapter } from './adapters/jsonschema.adapter.js';
 
 /**
  * Create a registry with all standard adapters pre-registered.
@@ -45,6 +56,7 @@ export function createDefaultRegistry(): AdapterRegistry {
   const registry = new AdapterRegistry();
   registry.register(new NativeAdapter());
   registry.register(new PrismaAdapter());
-  // TODO: register JsonSchemaAdapter / OpenApiAdapter when ready
+  registry.register(new JsonSchemaAdapter());
+  // TODO: register OpenApiAdapter when ready
   return registry;
 }

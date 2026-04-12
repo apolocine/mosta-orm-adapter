@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Admin",
+  "type": "object",
+  "x-mostajs-entity": { "tableName": "admins" },
+  "allOf": [
+    {
+      "type": "object",
+      "properties": {
+        "id":    { "type": "integer", "x-primary": true },
+        "name":  { "type": "string", "minLength": 1 },
+        "email": { "type": "string", "format": "email" }
+      },
+      "required": ["id", "name", "email"]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "role":        { "type": "string", "enum": ["admin", "superadmin"] },
+        "permissions": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["role"]
+    }
+  ]
+}

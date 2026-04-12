@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Product",
+  "type": "object",
+  "x-mostajs-entity": { "tableName": "products" },
+  "properties": {
+    "id":          { "type": "integer", "x-primary": true },
+    "name":        { "type": "string", "minLength": 1, "maxLength": 255 },
+    "sku":         { "type": "string", "pattern": "^[A-Z]{3}-\\d{4}$", "x-unique": true },
+    "price":       { "type": "number", "minimum": 0, "exclusiveMaximum": 1000000 },
+    "stock":       { "type": "integer", "minimum": 0 },
+    "ratings":     { "type": "array", "items": { "type": "number" }, "minItems": 0, "maxItems": 1000 },
+    "status":      { "type": "string", "enum": ["active", "discontinued", "out_of_stock"] },
+    "description": { "type": "string", "format": "uri-reference" },
+    "weight":      { "type": ["number", "null"] }
+  },
+  "required": ["id", "name", "sku", "price"],
+  "x-indexes": [
+    { "fields": ["name", "status"], "name": "idx_name_status" }
+  ]
+}

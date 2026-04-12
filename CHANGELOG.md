@@ -2,6 +2,52 @@
 
 All notable changes to `@mostajs/orm-adapter` will be documented in this file.
 
+## [0.3.0] — 2026-04-12
+
+### Added
+
+- **JsonSchemaAdapter** : converts JSON Schema to `EntitySchema[]`
+  - Drafts : Draft-07, Draft 2019-09, Draft 2020-12 (auto-detected via `$schema` URL)
+  - Types : `string`, `integer`, `number`, `boolean`, `array`, `object`, `null`
+  - Formats : `date-time`, `date`, `time`, `email`, `uuid`, `uri`, `uri-reference`, `ipv4`, `ipv6`, `regex`, `binary`, `byte`
+  - Nullable : both OpenAPI `nullable: true` and array form `type: [T, "null"]`
+  - Constraints : `enum`, `const`, `default`, `minLength`/`maxLength`, `pattern`, `minimum`/`maximum`
+  - Annotations : `readOnly`, `writeOnly`, `deprecated`, `title`, `description` (preserved)
+  - **allOf flattening** : merges parent properties into child (inheritance pattern)
+  - **oneOf discriminator** : maps to `EntitySchema.discriminator` + `discriminatorValue`
+  - **Entity detection** : top-level title/x-mostajs-entity + all `$defs` / `definitions`
+  - **$ref resolution** : internal + external via `@apidevtools/json-schema-ref-parser`
+  - **Cycle detection** : self-references flagged via CYCLIC_REFERENCE warning
+- **Extensions** (all `x-*`) :
+  - `x-mostajs-entity` : `{ tableName, timestamps, softDelete, discriminator, discriminatorValue }`
+  - `x-mostajs-relation` : `{ type, target, foreignKey, otherKey, through, onDelete }`
+  - `x-primary`, `x-unique`, `x-index`, `x-indexes` (composite)
+  - `x-autoIncrement`
+- **Auto-relation detection** :
+  - Property is object with title matching an entity → `many-to-one`
+  - Array items `$ref` to an entity → `one-to-many`
+  - Explicit `x-mostajs-relation` always wins
+- **Input forms** : plain object, JSON string, or `$ref`-laden schema (auto-dereferenced)
+- **Utils** : `jsonschema-types` (shared types + draft detection), `jsonschema-type-mapper`, `jsonschema-flatten`
+- **Public types re-exports** : `JsonSchema`, `JsonSchemaType`, `XMostajsEntity`, `XMostajsRelation`, `DraftVersion`
+- 60 new unit tests on 4 fixtures :
+  - `user-2020-12.json` (Draft 2020-12 + relations + indexes + x-mostajs-*)
+  - `post-draft-07.json` (Draft-07 compat + auto-relation via $ref title)
+  - `allof-composition.json` (allOf merge + required merge)
+  - `validators.json` (all validators + composite x-indexes)
+
+### Changed
+
+- `createDefaultRegistry()` now includes JsonSchemaAdapter in the detection chain
+
+### Warnings emitted (new)
+
+- `PREVIEW_FEATURE` on Draft-04/06 (legacy drafts)
+- `LOSSY_CONVERSION` on `int64` format, tuple `items`, binary/byte format
+- `AMBIGUOUS_MAPPING` on allOf property redefinition (last-wins)
+- `CYCLIC_REFERENCE` on self-referencing entities
+- `FALLBACK_APPLIED` on non-object $defs entries
+
 ## [0.2.0] — 2026-04-12
 
 ### Added

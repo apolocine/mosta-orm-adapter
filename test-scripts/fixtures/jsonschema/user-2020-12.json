@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/user.json",
+  "title": "User",
+  "type": "object",
+  "x-mostajs-entity": {
+    "tableName": "users",
+    "timestamps": true
+  },
+  "$defs": {
+    "Role": {
+      "type": "object",
+      "title": "Role",
+      "properties": {
+        "id":   { "type": "integer", "x-primary": true, "x-autoIncrement": true },
+        "name": { "type": "string", "maxLength": 64, "x-unique": true }
+      },
+      "required": ["id", "name"]
+    }
+  },
+  "properties": {
+    "id":    { "type": "string", "format": "uuid", "x-primary": true },
+    "email": { "type": "string", "format": "email", "maxLength": 320, "x-index": { "unique": true } },
+    "status": {
+      "type": "string",
+      "enum": ["active", "suspended", "deleted"],
+      "default": "active"
+    },
+    "age":   { "type": "integer", "minimum": 0, "maximum": 150 },
+    "archived": { "type": ["boolean", "null"], "default": false },
+    "passwordHash": { "type": "string", "writeOnly": true },
+    "createdAt": { "type": "string", "format": "date-time", "readOnly": true },
+    "updatedAt": { "type": "string", "format": "date-time", "readOnly": true },
+    "roles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Role" },
+      "x-mostajs-relation": {
+        "type": "belongsToMany",
+        "target": "Role",
+        "through": "user_roles",
+        "foreignKey": "userId",
+        "otherKey": "roleId"
+      }
+    }
+  },
+  "required": ["id", "email", "passwordHash"]
+}
