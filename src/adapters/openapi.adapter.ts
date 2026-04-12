@@ -6,6 +6,7 @@
 // License: AGPL-3.0-or-later
 
 import { dereference, validate } from '@readme/openapi-parser';
+import yaml from 'js-yaml';
 import type { EntitySchema } from '@mostajs/orm';
 import { AbstractAdapter } from '../core/abstract.adapter.js';
 import { WarningCode, type AdapterOptions, type AdapterWarning } from '../core/types.js';
@@ -65,6 +66,10 @@ export class OpenApiAdapter extends AbstractAdapter {
 
     // Swagger 2.0 shape (not yet supported but let us detect and warn)
     if ((obj as { swagger?: string }).swagger === '2.0') return true;
+
+    // YAML heuristic on raw string input
+    if (typeof input === 'string' && /^\s*openapi\s*:\s*['"]?3\./m.test(input)) return true;
+    if (typeof input === 'string' && /^\s*swagger\s*:\s*['"]?2\.0/m.test(input)) return true;
 
     return false;
   }
@@ -209,13 +214,20 @@ export class OpenApiAdapter extends AbstractAdapter {
 
   /**
    * Normalize input to object form.
+   * Supports:
+   *  - plain JS object (no parsing)
+   *  - JSON string (starts with `{`)
+   *  - YAML string (common OpenAPI format)
+   *
    * @readme/openapi-parser treats strings as file paths (not content),
-   * so we JSON.parse strings ourselves here.
+   * so we parse strings ourselves here.
    */
   private resolveInput(input: string | object): OpenApiDoc {
     if (typeof input !== 'string') return input as OpenApiDoc;
     const trimmed = input.trim();
-    if (trimmed.startsWith('{')) {
+
+    // JSON
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
       try {
         return JSON.parse(trimmed) as OpenApiDoc;
       } catch (e) {
@@ -224,10 +236,19 @@ export class OpenApiAdapter extends AbstractAdapter {
         );
       }
     }
-    // YAML parsing not implemented yet — recommend pre-parsing
-    throw new InvalidSchemaError(
-      'OpenApiAdapter accepts objects or JSON strings. For YAML, pre-parse with js-yaml.'
-    );
+
+    // YAML
+    try {
+      const parsed = yaml.load(trimmed, { schema: yaml.JSON_SCHEMA });
+      if (parsed && typeof parsed === 'object') {
+        return parsed as OpenApiDoc;
+      }
+      throw new InvalidSchemaError('YAML parsed to non-object value');
+    } catch (e) {
+      throw new InvalidSchemaError(
+        `Invalid YAML/JSON input: ${e instanceof Error ? e.message : String(e)}`
+      );
+    }
   }
 
   /**

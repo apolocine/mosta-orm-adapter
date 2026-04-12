@@ -8,6 +8,7 @@ const tests = [
   'test-scripts/test-prisma.ts',
   'test-scripts/test-jsonschema.ts',
   'test-scripts/test-openapi.ts',
+  'test-scripts/test-e2e-real.ts',
 ];
 
 let total = 0;

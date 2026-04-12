@@ -148,6 +148,7 @@ export class MyCustomAdapter extends AbstractAdapter {
 - **v0.2.0** — PrismaAdapter (scalars, relations, enums, implicit M-N) ✅
 - **v0.3.0** — JsonSchemaAdapter (Draft 2020-12 + Draft-07 + allOf + x-mostajs-*) ✅
 - **v0.4.0** — OpenApiAdapter (3.1 + 3.0 normalization + Swagger 2.0 detect) ✅
+- **v0.5.0** — YAML input + E2E tests on real specs (238 tests passing) ✅
 - **v1.0.0** — Production-ready, all 4 adapters with reverse conversion
 
 ## OpenApiAdapter example

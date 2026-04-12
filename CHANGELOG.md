@@ -2,6 +2,35 @@
 
 All notable changes to `@mostajs/orm-adapter` will be documented in this file.
 
+## [0.5.0] — 2026-04-12
+
+### Added
+
+- **YAML input for OpenApiAdapter** : native support for YAML-formatted OpenAPI specs via `js-yaml`
+  - Auto-detected in `canParse` when string matches `^\s*openapi:` or `^\s*swagger:`
+  - No need to pre-parse with external library anymore
+  - Fixture `petstore-3.1.yaml` added for regression
+- **E2E tests on real-world specs** (`test-e2e-real.ts`) :
+  - YAML OpenAPI round-trip
+  - Realistic SaaS Prisma schema (cal.com/dub style) with 8 entities, implicit M-N, nested relations, enums, BigInt, Json, composite unique constraints
+  - Swagger Petstore v3 (real spec from swagger.io) — 6 entities extracted with < 10 warnings
+  - Cross-format registry dispatch (auto-detection Prisma + YAML + JSON)
+  - Cross-format equivalence (entities pass through Native without alteration)
+
+### Test coverage
+
+238 tests across 5 suites (all passing) :
+- 31 native
+- 55 prisma
+- 60 jsonschema
+- 50 openapi
+- **42 e2e-real** (new)
+
+### Dependencies
+
+- Added `js-yaml ^4.1.1` (for YAML parsing in OpenApiAdapter)
+- Added `@types/js-yaml ^4.0.9` (dev)
+
 ## [0.4.0] — 2026-04-12
 
 ### Added

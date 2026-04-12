@@ -1,0 +1,49 @@
+openapi: 3.1.0
+info:
+  title: Petstore YAML
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      responses:
+        '200':
+          description: ok
+components:
+  schemas:
+    Pet:
+      type: object
+      x-mostajs-entity:
+        tableName: pets
+        timestamps: true
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          x-primary: true
+        name:
+          type: string
+          maxLength: 100
+          x-index: true
+        tag:
+          type: [string, 'null']
+        status:
+          type: string
+          enum: [available, pending, sold]
+          default: available
+        owner:
+          $ref: '#/components/schemas/User'
+    User:
+      type: object
+      x-mostajs-entity:
+        tableName: users
+      required: [id, email]
+      properties:
+        id:
+          type: integer
+          x-primary: true
+        email:
+          type: string
+          format: email
+          x-unique: true
