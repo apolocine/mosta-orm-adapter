@@ -1,0 +1,90 @@
+{
+  "name": "@mostajs/orm-adapter",
+  "version": "0.1.0",
+  "description": "Third-party schema adapters for @mostajs/orm — convert Prisma, JSON Schema, OpenAPI to EntitySchema",
+  "author": "Dr Hamid MADANI <drmdh@msn.com>",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./native": {
+      "types": "./dist/adapters/native.adapter.d.ts",
+      "import": "./dist/adapters/native.adapter.js"
+    },
+    "./prisma": {
+      "types": "./dist/adapters/prisma.adapter.d.ts",
+      "import": "./dist/adapters/prisma.adapter.js"
+    },
+    "./jsonschema": {
+      "types": "./dist/adapters/jsonschema.adapter.d.ts",
+      "import": "./dist/adapters/jsonschema.adapter.js"
+    },
+    "./openapi": {
+      "types": "./dist/adapters/openapi.adapter.d.ts",
+      "import": "./dist/adapters/openapi.adapter.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "npx tsx test-scripts/run-all.ts",
+    "test:native": "npx tsx test-scripts/test-native.ts",
+    "test:prisma": "npx tsx test-scripts/test-prisma.ts",
+    "test:jsonschema": "npx tsx test-scripts/test-jsonschema.ts",
+    "test:openapi": "npx tsx test-scripts/test-openapi.ts",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "mostajs",
+    "orm",
+    "schema",
+    "adapter",
+    "prisma",
+    "json-schema",
+    "openapi",
+    "swagger",
+    "entity-schema",
+    "interoperability"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apolocine/mosta-orm-adapter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/apolocine/mosta-orm-adapter/issues"
+  },
+  "homepage": "https://github.com/apolocine/mosta-orm-adapter#readme",
+  "peerDependencies": {
+    "@mostajs/orm": "^1.9.0"
+  },
+  "dependencies": {
+    "@mrleebo/prisma-ast": "^0.12.0",
+    "@apidevtools/json-schema-ref-parser": "^11.0.0",
+    "ajv": "^8.12.0",
+    "ajv-formats": "^3.0.1",
+    "@readme/openapi-parser": "^6.0.1",
+    "openapi-types": "^12.1.3"
+  },
+  "devDependencies": {
+    "@mostajs/orm": "^1.9.0",
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
