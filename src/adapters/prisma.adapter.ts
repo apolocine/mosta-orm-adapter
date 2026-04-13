@@ -127,11 +127,38 @@ export class PrismaAdapter extends AbstractAdapter {
     }
 
     // ---- Detect timestamps convention (createdAt + updatedAt) ----
+    // If both exist, enable timestamps:true AND remove the explicit fields
+    // (the ORM DDL generator adds them automatically — leaving them in
+    //  fields{} would cause duplicate columns at CREATE TABLE time).
     if (this.hasTimestampsConvention(fields)) {
       entity.timestamps = true;
+      delete entity.fields.createdAt;
+      delete entity.fields.updatedAt;
     }
 
+    // ---- Deduplicate : if a relation's joinColumn matches an explicit field,
+    //      drop the explicit field (the relation owns that column in the DDL).
+    //      Without this, Prisma schemas like `createdById String?; createdBy User @relation(fields: [createdById], references: [id])`
+    //      would produce two "createdById" columns. ----
+    this.dedupeRelationJoinColumns(entity);
+
     return entity;
+  }
+
+  /**
+   * When a relation's `joinColumn` equals the name of an explicit field,
+   * remove the explicit field — the relation is the owning side and the
+   * DDL generator will emit the FK column from it.
+   *
+   * Keeps the ORM's relation semantics correct and avoids "duplicate column"
+   * errors at CREATE TABLE time.
+   */
+  private dedupeRelationJoinColumns(entity: EntitySchema): void {
+    for (const rel of Object.values(entity.relations)) {
+      if (rel.joinColumn && entity.fields[rel.joinColumn]) {
+        delete entity.fields[rel.joinColumn];
+      }
+    }
   }
 
   private resolveTableName(model: Model): string {

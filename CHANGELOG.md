@@ -2,6 +2,32 @@
 
 All notable changes to `@mostajs/orm-adapter` will be documented in this file.
 
+## [0.5.1] — 2026-04-13
+
+### Fixed
+
+- **PrismaAdapter : duplicate column DDL error.** When a Prisma model declared
+  both an explicit scalar field (e.g. `createdById`) AND a relation using it
+  as `@relation(fields: [createdById], ...)`, the generated EntitySchema
+  contained both the explicit field AND the relation's joinColumn. The ORM's
+  DDL generator then emitted the same column twice, causing :
+  `SQLITE_ERROR: duplicate column name: createdById`
+  Fix : after processing a model, drop any explicit field whose name matches
+  a relation's joinColumn (the relation owns the FK column in the DDL).
+
+- **PrismaAdapter : duplicate createdAt / updatedAt** when timestamps convention
+  is detected. Setting `timestamps: true` tells the ORM to auto-manage those
+  columns, so they must NOT remain in `fields{}` (which would cause the DDL
+  to emit them twice).
+  Fix : when `timestamps: true` is enabled, `createdAt` and `updatedAt` are
+  removed from `fields{}`.
+
+### Impact
+
+Validated on FitZoneGym (real production schema, 40 Prisma models) :
+- Before : `initSchema` crashed with SQLITE_ERROR on User (duplicate createdById, updatedById, createdAt, updatedAt).
+- After : all 40 tables created successfully on SQLite, PG and MongoDB.
+
 ## [0.5.0] — 2026-04-12
 
 ### Added
