@@ -1,19 +1,22 @@
 # @mostajs/orm-adapter
 
-> Third-party schema adapters for [@mostajs/orm](https://github.com/apolocine/mosta-orm).
-> Convert Prisma, JSON Schema, OpenAPI, and more to `EntitySchema[]`.
+> **Convert Prisma / JSON Schema / OpenAPI schemas to [@mostajs/orm](https://github.com/apolocine/mosta-orm) `EntitySchema[]`.**
+>
+> One canonical format, four adapters, 238 tests, production-validated on a 40-model real-world Prisma schema.
 
 [![npm version](https://img.shields.io/npm/v/@mostajs/orm-adapter.svg)](https://www.npmjs.com/package/@mostajs/orm-adapter)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 
-## Why
+## Adapters
 
-@mostajs/orm supports **13 databases** with a unified `EntitySchema` format. This package bridges that format with the rest of the ecosystem, letting you reuse schemas you already have:
+| Adapter | Input | Status | Notes |
+|---|---|---|---|
+| **Native** | `EntitySchema[]` | ✅ v0.1 | Passthrough with structural validation |
+| **Prisma** | `.prisma` file | ✅ v0.2 / fixes in v0.5.1 | All scalars, 1-1, 1-N, M-N (implicit), enums, native types, auto-timestamps detection |
+| **JSONSchema** | Draft 2020-12 / 2019-09 / Draft-07 | ✅ v0.3 | `allOf` flattening, `oneOf` discriminator, `x-mostajs-*` extensions |
+| **OpenAPI** | 3.1 / 3.0 / Swagger 2.0 | ✅ v0.4 / YAML in v0.5 | 3.0→3.1 auto-normalization, `$ref` dereferencing |
 
-- **Prisma** `.prisma` files → EntitySchema[] (planned)
-- **JSON Schema** Draft 2020-12 → EntitySchema[] (planned)
-- **OpenAPI 3.1** `components/schemas` → EntitySchema[] (planned)
-- **Native** EntitySchema → EntitySchema[] (passthrough, **v0.1.0**)
+Tests : **238 passing** across 5 suites (native / prisma / jsonschema / openapi / e2e-real).
 
 ## Install
 
@@ -23,58 +26,74 @@ npm install @mostajs/orm-adapter @mostajs/orm
 
 ## Quick start
 
-### Native passthrough (validation layer)
+### Auto-detection via Registry (recommended)
 
 ```ts
-import { NativeAdapter } from '@mostajs/orm-adapter';
-import type { EntitySchema } from '@mostajs/orm';
+import { createDefaultRegistry } from '@mostajs/orm-adapter'
+import { readFileSync } from 'fs'
 
-const UserSchema: EntitySchema = {
-  name: 'User',
-  collection: 'users',
-  fields: {
-    email: { type: 'string', required: true, unique: true },
-  },
-  relations: {},
-  indexes: [{ fields: { email: 'asc' }, unique: true }],
-  timestamps: true,
-};
-
-const adapter = new NativeAdapter();
-const entities = await adapter.toEntitySchema(UserSchema);
-// -> EntitySchema[]
+const registry = createDefaultRegistry()   // registers native, prisma, jsonschema, openapi
+const source   = readFileSync('./schema.prisma', 'utf8')
+const entities = await registry.fromAny(source)
+// → EntitySchema[]  — hand to @mostajs/orm's `registerSchemas` / `initSchema`
 ```
 
-### Auto-detection via Registry
+### Subpath imports (avoid pulling all deps)
 
 ```ts
-import { createDefaultRegistry } from '@mostajs/orm-adapter';
-
-const registry = createDefaultRegistry();
-const entities = await registry.fromAny(unknownInput);
-// Auto-detects format (native / prisma / jsonschema / openapi)
+import { PrismaAdapter }     from '@mostajs/orm-adapter/prisma'
+import { JsonSchemaAdapter } from '@mostajs/orm-adapter/jsonschema'
+import { OpenApiAdapter }    from '@mostajs/orm-adapter/openapi'
+import { NativeAdapter }     from '@mostajs/orm-adapter/native'
 ```
 
-### Strict mode — fail fast on invalid schema
+Subpath imports only pull the parser libs you actually need (`@mrleebo/prisma-ast`, `ajv`, `@readme/openapi-parser`, `js-yaml`).
+
+### Prisma
 
 ```ts
-try {
-  await adapter.toEntitySchema(maybeInvalid, { strict: true });
-} catch (e) {
-  if (e instanceof InvalidSchemaError) console.error(e.details);
-}
+import { PrismaAdapter } from '@mostajs/orm-adapter/prisma'
+
+const adapter  = new PrismaAdapter()
+const entities = await adapter.toEntitySchema(readFileSync('./schema.prisma', 'utf8'), {
+  onWarning: w => console.warn(`[${w.code}] ${w.message}`),
+})
 ```
 
-### Collect warnings for logging
+Supports all scalars (String, Int, BigInt, Float, Decimal, Boolean, DateTime, Json, Bytes), modifiers (`?`, `[]`), field attributes (`@id`, `@unique`, `@default`, `@map`, `@updatedAt`, `@db.*`), model attributes (`@@id`, `@@unique`, `@@index`, `@@map`, `@@schema`, `@@fulltext`), enums, relations (1-1, 1-N, many-to-one, implicit M-N with junction synthesis, self-relations named via `@relation("Name")`), referential actions, default sentinels (`AUTOINCREMENT`, `NOW`, `UUID_V4/V7`, `CUID/CUID2`, `NANOID`, `ULID`, `OBJECT_ID`), and auto-detection of `createdAt` + `updatedAt` convention.
+
+### JSON Schema
 
 ```ts
-await adapter.toEntitySchema(userSchema, {
-  onWarning: (w) => logger.warn(`[${w.code}] ${w.message}`, {
-    entity: w.entity,
-    field: w.field,
-  }),
-});
+import { JsonSchemaAdapter } from '@mostajs/orm-adapter/jsonschema'
+
+const adapter  = new JsonSchemaAdapter()
+const entities = await adapter.toEntitySchema(jsonSchemaObject)
 ```
+
+Supports all draft types + formats (`date-time`, `uuid`, `uri`, `email`, …), nullable (OpenAPI `nullable: true` and array-form `type: [T, "null"]`), `allOf` flattening (inheritance), `oneOf` discriminator, `$ref` resolution (internal + external), cycle detection. Recognizes `x-mostajs-entity`, `x-mostajs-relation`, `x-primary`, `x-unique`, `x-index`, `x-indexes`, `x-autoIncrement`.
+
+### OpenAPI
+
+```ts
+import { OpenApiAdapter } from '@mostajs/orm-adapter/openapi'
+
+const adapter  = new OpenApiAdapter()
+const entities = await adapter.toEntitySchema(openApiSpec)   // JSON object, JSON string, or YAML string
+```
+
+- OpenAPI 3.1 : full JSON Schema 2020-12 semantics
+- OpenAPI 3.0.x : auto-normalized to 3.1 shape (`nullable: true` → `type: [T, "null"]`, `example: X` → `examples: [X]`, etc.)
+- Swagger 2.0 : detected, emits `PREVIEW_FEATURE` warning
+- YAML input supported natively (no pre-parsing needed)
+
+## Recent fixes (v0.5.1)
+
+**PrismaAdapter : duplicate column DDL errors** on real-world schemas.
+- When a model declared both an explicit scalar field (e.g. `createdById`) AND a relation using it as `@relation(fields: [createdById], ...)`, the generated EntitySchema contained the same column twice → `SQLITE_ERROR: duplicate column name`.
+- Timestamps convention : when `timestamps: true` is detected, `createdAt` / `updatedAt` were still present in `fields{}`, causing DDL to emit them twice.
+
+Both fixed. Validated on FitZoneGym (40 real Prisma models) : all tables now create cleanly on SQLite, PostgreSQL, and MongoDB.
 
 ## API
 
@@ -82,12 +101,12 @@ await adapter.toEntitySchema(userSchema, {
 
 ```ts
 interface IAdapter {
-  readonly name: string;
-  readonly vendor: string;
-  readonly version: string;
-  canParse(input: string | object): boolean;
-  toEntitySchema(input: string | object, opts?: AdapterOptions): Promise<EntitySchema[]>;
-  fromEntitySchema?(entities: EntitySchema[], opts?: AdapterOptions): Promise<string | object>;
+  readonly name: string
+  readonly vendor: string
+  readonly version: string
+  canParse(input: string | object): boolean
+  toEntitySchema(input: string | object, opts?: AdapterOptions): Promise<EntitySchema[]>
+  fromEntitySchema?(entities: EntitySchema[], opts?: AdapterOptions): Promise<string | object>
 }
 ```
 
@@ -97,7 +116,7 @@ interface IAdapter {
 |--------|------|-------------|
 | `strict` | `boolean` | Warnings become exceptions (fail-fast) |
 | `onWarning` | `(w: AdapterWarning) => void` | Callback for each warning |
-| `extensions` | `Record<string, unknown>` | Custom values for x-mostajs-* |
+| `extensions` | `Record<string, unknown>` | Custom values for `x-mostajs-*` |
 | `relationStrategy` | `'explicit' \| 'auto' \| 'none'` | Relation detection mode |
 | `unknownTypesFallback` | `'json' \| 'error' \| 'string'` | Fallback for unmappable types |
 
@@ -108,90 +127,58 @@ interface IAdapter {
 - `MISSING_METADATA` — expected metadata absent
 - `AMBIGUOUS_MAPPING` — multiple valid interpretations
 - `PREVIEW_FEATURE` — experimental/preview feature used
-- `FALLBACK_APPLIED` — default strategy used
+- `FALLBACK_APPLIED` — default strategy applied
 - `CYCLIC_REFERENCE` — self-referencing schema detected
-- `UNKNOWN_EXTENSION` — unrecognized x-* extension
+- `UNKNOWN_EXTENSION` — unrecognized `x-*` extension
 
-## Building your own adapter
+## Writing a custom adapter
 
 ```ts
-import { AbstractAdapter, type AdapterOptions, WarningCode } from '@mostajs/orm-adapter';
-import type { EntitySchema } from '@mostajs/orm';
+import { AbstractAdapter, type AdapterOptions, WarningCode } from '@mostajs/orm-adapter'
+import type { EntitySchema } from '@mostajs/orm'
 
 export class MyCustomAdapter extends AbstractAdapter {
-  readonly name = 'my-format';
-  readonly vendor = 'my-org';
-  readonly version = '0.1.0';
+  readonly name    = 'my-format'
+  readonly vendor  = 'my-org'
+  readonly version = '0.1.0'
 
   canParse(input: string | object): boolean {
-    // Fast, non-destructive detection
-    return typeof input === 'string' && input.includes('@my-format');
+    return typeof input === 'string' && input.includes('@my-format')
   }
 
   async toEntitySchema(input: string | object, opts?: AdapterOptions): Promise<EntitySchema[]> {
-    // 1. Parse your source format
-    // 2. Map to EntitySchema[]
-    // 3. Emit warnings for lossy conversions
     this.warn(opts, {
       code: WarningCode.LOSSY_CONVERSION,
       message: 'Some feature lost during mapping',
       entity: 'Foo',
-    });
-    return [/* ... */];
+    })
+    return [/* ... */]
   }
 }
 ```
 
 ## Roadmap
 
-- **v0.1.0** — NativeAdapter + core (AbstractAdapter, Registry) ✅
-- **v0.2.0** — PrismaAdapter (scalars, relations, enums, implicit M-N) ✅
-- **v0.3.0** — JsonSchemaAdapter (Draft 2020-12 + Draft-07 + allOf + x-mostajs-*) ✅
-- **v0.4.0** — OpenApiAdapter (3.1 + 3.0 normalization + Swagger 2.0 detect) ✅
-- **v0.5.0** — YAML input + E2E tests on real specs (238 tests passing) ✅
-- **v1.0.0** — Production-ready, all 4 adapters with reverse conversion
+- **v0.1.0** ✅ — NativeAdapter + core (AbstractAdapter, Registry)
+- **v0.2.0** ✅ — PrismaAdapter
+- **v0.3.0** ✅ — JsonSchemaAdapter
+- **v0.4.0** ✅ — OpenApiAdapter
+- **v0.5.0** ✅ — YAML input + 238 tests including e2e-real
+- **v0.5.1** ✅ — PrismaAdapter DDL fixes (joinColumn dedup, timestamps)
+- **v0.6.0** 🚧 — `fromEntitySchema` for all 4 adapters (bidirectional conversion)
+- **v1.0.0** — Production-ready : round-trip tests (Prisma → ORM → Prisma), plugin API
 
-## OpenApiAdapter example
+## Ecosystem
 
-```ts
-import { OpenApiAdapter } from '@mostajs/orm-adapter';
-import { readFileSync } from 'fs';
-
-const spec = JSON.parse(readFileSync('./openapi.json', 'utf8'));
-const adapter = new OpenApiAdapter();
-const entities = await adapter.toEntitySchema(spec);
-
-// Extracts every components/schemas entry as an EntitySchema.
-// Auto-handles:
-// - OpenAPI 3.0 → 3.1 normalization (nullable, exclusiveMin, examples)
-// - $ref resolution (internal)
-// - allOf flattening (inheritance)
-// - discriminator → EntitySchema.discriminator
-// - x-mostajs-relation on $ref-bearing properties (preserved across dereference)
-```
-
-## PrismaAdapter example
-
-```ts
-import { PrismaAdapter, DefaultSentinel } from '@mostajs/orm-adapter';
-import { readFileSync } from 'fs';
-
-const source = readFileSync('./schema.prisma', 'utf8');
-const adapter = new PrismaAdapter();
-const entities = await adapter.toEntitySchema(source, {
-  onWarning: (w) => console.warn(`[${w.code}] ${w.message}`),
-});
-
-// entities: EntitySchema[] — feed directly to @mostajs/orm
-// Supports 13 databases (Postgres, Oracle, DB2, MongoDB, etc.)
-// where Prisma only supports 7.
-```
+- [@mostajs/orm](https://www.npmjs.com/package/@mostajs/orm) — the ORM backing all these schemas
+- [@mostajs/orm-bridge](https://www.npmjs.com/package/@mostajs/orm-bridge) — keep your Prisma code, run on 13 databases
+- [@mostajs/orm-cli](https://www.npmjs.com/package/@mostajs/orm-cli) — one-shot migration
 
 ## License
 
 **AGPL-3.0-or-later** + commercial license available.
 
-For commercial use in closed-source projects, contact: drmdh@msn.com
+For closed-source commercial use : drmdh@msn.com
 
 ## Author
 
