@@ -8,3 +8,6 @@ dist/
 coverage/
 .vscode/
 .idea/
+
+# test-scripts artefacts (local, entreprise-private)
+test-scripts/artefacts/
