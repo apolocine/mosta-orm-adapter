@@ -7,7 +7,7 @@
 
 import { dereference, validate } from '@readme/openapi-parser';
 import yaml from 'js-yaml';
-import type { EntitySchema } from '@mostajs/orm';
+import type { EntitySchema, FieldDef } from '@mostajs/orm';
 import { AbstractAdapter } from '../core/abstract.adapter.js';
 import { WarningCode, type AdapterOptions, type AdapterWarning } from '../core/types.js';
 import { InvalidSchemaError } from '../core/errors.js';
@@ -277,5 +277,74 @@ export class OpenApiAdapter extends AbstractAdapter {
       return { openapi: '3.0.0' };  // placeholder to pass canParse
     }
     return null;
+  }
+
+  // ============================================================
+  // Reverse : EntitySchema[] → OpenAPI 3.1 document
+  // ============================================================
+  //
+  // Emits a minimal but valid OpenAPI 3.1 skeleton with `components.schemas`
+  // holding every entity (same JSON Schema shape as JsonSchemaAdapter).
+  // No paths are generated — the developer is expected to wire routes.
+
+  async fromEntitySchema(entities: EntitySchema[], _opts?: AdapterOptions): Promise<object> {
+    const schemas: Record<string, unknown> = {};
+    for (const e of entities) {
+      schemas[e.name] = this.entityToOpenApiSchema(e);
+    }
+    return {
+      openapi: '3.1.0',
+      info: {
+        title:   'mostajs entities',
+        version: '1.0.0',
+      },
+      paths: {},
+      components: { schemas },
+    };
+  }
+
+  private entityToOpenApiSchema(e: EntitySchema): Record<string, unknown> {
+    const properties: Record<string, unknown> = {};
+    const required: string[] = [];
+    for (const [fname, f] of Object.entries(e.fields ?? {})) {
+      properties[fname] = this.fieldToOpenApi(f);
+      if (f.required) required.push(fname);
+    }
+    for (const [rname, rel] of Object.entries(e.relations ?? {})) {
+      const ref = { $ref: `#/components/schemas/${rel.target}` };
+      properties[rname] = (rel.type === 'one-to-many' || rel.type === 'many-to-many')
+        ? { type: 'array', items: ref }
+        : ref;
+      (properties[rname] as any)['x-mostajs-relation'] = rel;
+    }
+    const out: Record<string, unknown> = {
+      type:  'object',
+      title: e.name,
+      'x-mostajs-collection': e.collection,
+      'x-mostajs-timestamps': e.timestamps ?? false,
+      properties,
+    };
+    if (required.length) out.required = required;
+    if (e.indexes?.length) out['x-mostajs-indexes'] = e.indexes;
+    return out;
+  }
+
+  private fieldToOpenApi(f: FieldDef): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    switch (f.type) {
+      case 'string':  case 'text': out.type = 'string'; break;
+      case 'number':               out.type = 'number'; break;
+      case 'boolean':              out.type = 'boolean'; break;
+      case 'date':                 out.type = 'string'; out.format = 'date-time'; break;
+      case 'json':                 out.type = 'object'; out.additionalProperties = true; break;
+      case 'array':                out.type = 'array'; out.items = { type: f.arrayOf ?? 'string' }; break;
+      default:                     out.type = 'string';
+    }
+    if (f.enum?.length) out.enum = f.enum;
+    if (f.default !== undefined && typeof f.default !== 'function' && !String(f.default).startsWith('__MOSTA_')) {
+      out.default = f.default;
+    }
+    if (f.unique)      out['x-mostajs-unique'] = true;
+    return out;
   }
 }

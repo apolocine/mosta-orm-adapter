@@ -2,6 +2,38 @@
 
 All notable changes to `@mostajs/orm-adapter` will be documented in this file.
 
+## [0.6.0] — 2026-04-15
+
+### Added — bidirectional adapters (`fromEntitySchema` on all 4 adapters)
+
+- **`PrismaAdapter.fromEntitySchema(entities)`** → emits a complete `.prisma`
+  schema string (generator + datasource + enums + models). Maps :
+  - field types (`string → String`, `number → Float`, `date → DateTime`, …)
+  - `__MOSTA_NOW__` / `__MOSTA_OBJECT_ID__` sentinels → `@default(now())` / `@default(uuid())`
+  - enums → dedicated `enum X { ... }` blocks (one per field-with-`enum`)
+  - unique fields → `@unique`, composite unique → `@@unique([a, b])`
+  - M:1 / 1:1 owning side → `fkId String?` + `rel X? @relation(fields: [fkId], references: [id])`
+  - 1:N / N:N → `rel X[]` list
+  - `@@map("collection")` when collection ≠ default snake_case + 's'
+  - Round-trip `toEntitySchema(fromEntitySchema(entities))` validated on the
+    40-entity FitZoneGym fixture : parses back without error.
+- **`JsonSchemaAdapter.fromEntitySchema(entities)`** → emits a JSON Schema
+  2020-12 document with `definitions: { EntityName: { type: 'object', ... } }`.
+  Relations become `$ref` (or `array of $ref` for 1:N / N:N) plus a
+  `x-mostajs-relation` extension that preserves the full `RelationDef` for
+  lossless inverse conversion.
+- **`OpenApiAdapter.fromEntitySchema(entities)`** → emits a minimal but valid
+  OpenAPI 3.1 document with `components.schemas` holding every entity
+  (same JSON-Schema shape). `paths: {}` — user wires routes on top.
+- **`NativeAdapter.fromEntitySchema`** — already existed (passthrough),
+  documented as such.
+
+### Strategy
+
+Round-trip is **best-effort** by design. Lossy cases emit
+`WarningCode.LOSSY_CONVERSION` (e.g. exotic default values that don't map
+cleanly). Use `strict: true` in `AdapterOptions` to fail fast on any warning.
+
 ## [0.5.1] — 2026-04-13
 
 ### Fixed

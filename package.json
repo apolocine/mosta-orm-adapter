@@ -1,7 +1,7 @@
 {
   "name": "@mostajs/orm-adapter",
-  "version": "0.5.2",
-  "description": "Third-party schema adapters for @mostajs/orm — convert Prisma, JSON Schema, OpenAPI to EntitySchema",
+  "version": "0.6.0",
+  "description": "Bidirectional schema adapters for @mostajs/orm — Prisma / JSON Schema / OpenAPI / Native, both directions (to/fromEntitySchema)",
   "author": "Dr Hamid MADANI <drmdh@msn.com>",
   "license": "AGPL-3.0-or-later",
   "type": "module",

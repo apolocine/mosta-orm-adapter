@@ -398,4 +398,78 @@ export class JsonSchemaAdapter extends AbstractAdapter {
       return null;
     }
   }
+
+  // ============================================================
+  // Reverse : EntitySchema[] → JSON Schema 2020-12 definitions
+  // ============================================================
+  //
+  // Emits a JSON object compatible with `{ "$id": "User", "type": "object",
+  // "properties": {...}, "required": [...] }`. Relations are emitted as
+  // `{ "$ref": "#/definitions/Target" }` (M:1, 1:1) or
+  // `{ "type": "array", "items": { "$ref": ... } }` (1:N, N:N), plus an
+  // `x-mostajs-relation` extension that preserves the exact RelationDef so
+  // the inverse direction is lossless.
+
+  async fromEntitySchema(entities: EntitySchema[], _opts?: AdapterOptions): Promise<object> {
+    const definitions: Record<string, unknown> = {};
+    for (const e of entities) {
+      definitions[e.name] = this.entityToJsonSchema(e);
+    }
+    return {
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      title:   'mostajs entities',
+      definitions,
+    };
+  }
+
+  private entityToJsonSchema(e: EntitySchema): Record<string, unknown> {
+    const properties: Record<string, unknown> = {};
+    const required: string[] = [];
+    for (const [fname, f] of Object.entries(e.fields ?? {})) {
+      properties[fname] = this.fieldToJsonSchema(f);
+      if (f.required) required.push(fname);
+    }
+    for (const [rname, rel] of Object.entries(e.relations ?? {})) {
+      properties[rname] = this.relationToJsonSchema(rel);
+      (properties[rname] as any)['x-mostajs-relation'] = rel;
+    }
+    const out: Record<string, unknown> = {
+      $id:   e.name,
+      type:  'object',
+      title: e.name,
+      'x-mostajs-collection': e.collection,
+      'x-mostajs-timestamps': e.timestamps ?? false,
+      properties,
+    };
+    if (required.length) out.required = required;
+    if (e.indexes?.length) out['x-mostajs-indexes'] = e.indexes;
+    return out;
+  }
+
+  private fieldToJsonSchema(f: FieldDef): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    switch (f.type) {
+      case 'string':  case 'text': out.type = 'string'; break;
+      case 'number':               out.type = 'number'; break;
+      case 'boolean':              out.type = 'boolean'; break;
+      case 'date':                 out.type = 'string'; out.format = 'date-time'; break;
+      case 'json':                 out.type = 'object'; out.additionalProperties = true; break;
+      case 'array':                out.type = 'array'; out.items = { type: f.arrayOf ?? 'string' }; break;
+      default:                     out.type = 'string';
+    }
+    if (f.enum?.length) out.enum = f.enum;
+    if (f.default !== undefined && typeof f.default !== 'function' && !String(f.default).startsWith('__MOSTA_')) {
+      out.default = f.default;
+    }
+    if (f.unique)      out['x-mostajs-unique'] = true;
+    return out;
+  }
+
+  private relationToJsonSchema(rel: any): Record<string, unknown> {
+    const ref = { $ref: `#/definitions/${rel.target}` };
+    if (rel.type === 'one-to-many' || rel.type === 'many-to-many') {
+      return { type: 'array', items: ref };
+    }
+    return ref;
+  }
 }
